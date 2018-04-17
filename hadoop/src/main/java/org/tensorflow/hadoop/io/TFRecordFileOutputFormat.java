@@ -15,6 +15,8 @@ limitations under the License.
 
 package org.tensorflow.hadoop.io;
 
+import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.compress.GzipCodec;
 import org.tensorflow.hadoop.util.TFRecordWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -29,9 +31,25 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.IOException;
 
 public class TFRecordFileOutputFormat extends FileOutputFormat<BytesWritable, NullWritable> {
+
+  private static void setCodecConfiguration(Configuration conf, String codec) {
+    if (codec != null) {
+      conf.set("mapreduce.output.fileoutputformat.compress", "true");
+      conf.set("mapreduce.output.fileoutputformat.compress.type", SequenceFile.CompressionType.BLOCK.toString());
+      conf.set("mapreduce.output.fileoutputformat.compress.codec", codec);
+      conf.set("mapreduce.map.output.compress", "true");
+      conf.set("mapreduce.map.output.compress.codec", codec);
+    } else {
+      // This infers the option `compression` is set to `uncompressed` or `none`.
+      conf.set("mapreduce.output.fileoutputformat.compress", "false");
+      conf.set("mapreduce.map.output.compress", "false");
+    }
+  }
+
   @Override public RecordWriter<BytesWritable, NullWritable> getRecordWriter(
       TaskAttemptContext context) throws IOException, InterruptedException {
     Configuration conf = context.getConfiguration();
+    setCodecConfiguration(conf, GzipCodec.class.getName());
     Path file = getDefaultWorkFile(context, "");
     FileSystem fs = file.getFileSystem(conf);
 
